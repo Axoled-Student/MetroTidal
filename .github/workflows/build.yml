@@ -184,6 +184,7 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
+          cp ~/.android/debug.keystore ./app/persistent-debug.keystore
 
       - name: Build Debug APK and Run Lint
         run: ./gradlew --console=plain assemble${{ matrix.variantName }}Debug :app:lint${{ matrix.variantName }}Debug --warning-mode summary

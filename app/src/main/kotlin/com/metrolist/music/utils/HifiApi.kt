@@ -4,7 +4,7 @@ import com.metrolist.shared.hifi.DEFAULT_HIFI_API_URL
 import com.metrolist.shared.hifi.HifiApiClient
 import com.metrolist.shared.hifi.HifiQuality
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
@@ -16,7 +16,7 @@ object HifiApi {
 
     private val client by lazy {
         HifiApiClient(
-            HttpClient(OkHttp) {
+            HttpClient(CIO) {
                 install(ContentNegotiation) {
                     json(Json { ignoreUnknownKeys = true })
                 }
