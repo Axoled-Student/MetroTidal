@@ -57,6 +57,7 @@ jobs:
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
       - name: Sign APK
+        if: ${{ secrets.KEYSTORE != '' && secrets.KEY_ALIAS != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_PASSWORD != '' }}
         uses: ilharp/sign-android-release@v2.0.0
         with:
           releaseDir: app/build/outputs/apk/foss/release/
@@ -66,13 +67,18 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           buildToolsVersion: 35.0.0
 
-      - name: Move signed APK
+      - name: Move built APK
         run: |
           OUTPUT_DIR="app/build/outputs/apk/foss/release"
           mkdir -p "$OUTPUT_DIR/out"
-          find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/app-universal-test-release.apk"
+          APK_PATH=$(find "$OUTPUT_DIR" \( -name "*-signed.apk" -o -name "*-unsigned-signed.apk" -o -name "*-unsigned.apk" \) | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No built APK found in $OUTPUT_DIR"
+            exit 1
+          fi
+          mv "$APK_PATH" "$OUTPUT_DIR/out/app-universal-test-release.apk"
 
-      - name: Upload Signed APK
+      - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: app-universal-test-release

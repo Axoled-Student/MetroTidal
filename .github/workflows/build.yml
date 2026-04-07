@@ -62,6 +62,7 @@ jobs:
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
       - name: Sign APK
+        if: ${{ secrets.KEYSTORE != '' && secrets.KEY_ALIAS != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_PASSWORD != '' }}
         uses: ilharp/sign-android-release@v2.0.0
         with:
           releaseDir: app/build/outputs/apk/${{ matrix.variant }}/release/
@@ -71,7 +72,7 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           buildToolsVersion: 35.0.0
 
-      - name: Move signed APK
+      - name: Move built APK
         run: |
           OUTPUT_DIR="app/build/outputs/apk/${{ matrix.variant }}/release"
           mkdir -p "$OUTPUT_DIR/out"
@@ -80,9 +81,14 @@ jobs:
           else
             TARGET_NAME="app-universal-release.apk"
           fi
-          find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/$TARGET_NAME"
+          APK_PATH=$(find "$OUTPUT_DIR" \( -name "*-signed.apk" -o -name "*-unsigned-signed.apk" -o -name "*-unsigned.apk" \) | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No built APK found in $OUTPUT_DIR"
+            exit 1
+          fi
+          mv "$APK_PATH" "$OUTPUT_DIR/out/$TARGET_NAME"
 
-      - name: Upload Signed APK
+      - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.variant == 'gms' && 'app-with-Google-Cast' || 'app-release' }}
@@ -124,15 +130,41 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Select debug signing mode
+        id: debug_signing
+        run: |
+          if [ -n "${{ secrets.DEBUG_KEYSTORE }}" ]; then
+            echo "github_event_name=${{ github.event_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "github_event_name=pull_request" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Restore Persistent Keystore
+        if: ${{ secrets.DEBUG_KEYSTORE != '' }}
         run: |
           echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ./app/persistent-debug.keystore
+
+      - name: Generate debug.keystore if not exists
+        if: ${{ secrets.DEBUG_KEYSTORE == '' }}
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build Debug APK and Run Lint
         run: ./gradlew --console=plain assemble${{ matrix.variantName }}Debug :app:lint${{ matrix.variantName }}Debug --warning-mode summary
         env:
           PULL_REQUEST: "false"
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_NAME: ${{ steps.debug_signing.outputs.github_event_name }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
