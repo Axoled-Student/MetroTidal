@@ -1,5 +1,13 @@
 @file:Suppress("UnstableApiUsage")
 
+pluginManagement {
+    repositories {
+        google()
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
@@ -18,6 +26,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "Metrolist"
 include(":app")
+include(":shared")
 include(":innertube")
 include(":kugou")
 include(":lrclib")

@@ -237,6 +237,7 @@ dependencies {
     implementation(project(":betterlyrics"))
     implementation(project(":simpmusic"))
     implementation(project(":shazamkit"))
+    implementation(project(":shared"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
@@ -250,4 +251,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
