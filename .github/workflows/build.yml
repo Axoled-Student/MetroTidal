@@ -61,8 +61,22 @@ jobs:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
+      - name: Detect signing secrets
+        id: release_signing
+        run: |
+          if [ -n "$KEYSTORE" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
       - name: Sign APK
-        if: ${{ secrets.KEYSTORE != '' && secrets.KEY_ALIAS != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_PASSWORD != '' }}
+        if: ${{ steps.release_signing.outputs.enabled == 'true' }}
         uses: ilharp/sign-android-release@v2.0.0
         with:
           releaseDir: app/build/outputs/apk/${{ matrix.variant }}/release/
@@ -130,22 +144,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Detect persistent debug keystore
+        id: debug_keystore
+        run: |
+          if [ -n "$DEBUG_KEYSTORE" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          DEBUG_KEYSTORE: ${{ secrets.DEBUG_KEYSTORE }}
+
       - name: Select debug signing mode
         id: debug_signing
         run: |
-          if [ -n "${{ secrets.DEBUG_KEYSTORE }}" ]; then
+          if [ "${{ steps.debug_keystore.outputs.available }}" = "true" ]; then
             echo "github_event_name=${{ github.event_name }}" >> "$GITHUB_OUTPUT"
           else
             echo "github_event_name=pull_request" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Restore Persistent Keystore
-        if: ${{ secrets.DEBUG_KEYSTORE != '' }}
+        if: ${{ steps.debug_keystore.outputs.available == 'true' }}
         run: |
           echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ./app/persistent-debug.keystore
 
       - name: Generate debug.keystore if not exists
-        if: ${{ secrets.DEBUG_KEYSTORE == '' }}
+        if: ${{ steps.debug_keystore.outputs.available != 'true' }}
         run: |
           mkdir -p ~/.android
           if [ ! -f ~/.android/debug.keystore ]; then
